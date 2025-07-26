@@ -47,10 +47,14 @@ function App() {
           recommendations: backendData.recommendations || 'Verify with official sources',
           sources: backendData.sources || ['Sources consulted'],
           timestamp: backendData.timestamp || Date.now() * 1000000,
-          isReliable: backendData.isReliable || false
+          isReliable: backendData.isReliable || false,
+          detectedLanguage: backendData.detectedLanguage || 'English' // New field
         };
         
         console.log('🎯 Processed data to display:', analysisResult);
+        console.log('🌐 Detected language:', analysisResult.detectedLanguage);
+        console.log('🔍 Input text language detected:', inputLanguage);
+        console.log('📝 First 100 chars:', newsText.substring(0, 100));
         setAnalysis(analysisResult);
         
       } else {
@@ -82,16 +86,11 @@ function App() {
     }
   };
 
+  // Enhanced status config with better language handling
   const getStatusConfig = (status) => {
     const configs = {
+      // Spanish statuses
       "Verificado": {
-        color: '#27ae60',
-        bgColor: '#d5f4e6',
-        icon: '✅',
-        description: 'Information confirmed by reliable sources',
-        englishLabel: 'VERIFIED'
-      },
-      "Verified": {
         color: '#27ae60',
         bgColor: '#d5f4e6',
         icon: '✅',
@@ -105,21 +104,7 @@ function App() {
         description: 'Contains correct data but also incorrect or misleading information',
         englishLabel: 'INACCURATE'
       },
-      "Inaccurate": {
-        color: '#f39c12',
-        bgColor: '#fef9e7',
-        icon: '⚠️',
-        description: 'Contains correct data but also incorrect or misleading information',
-        englishLabel: 'INACCURATE'
-      },
       "No Verificado": {
-        color: '#3498db',
-        bgColor: '#e8f4f8',
-        icon: 'ℹ️',
-        description: 'Not enough evidence to confirm or deny',
-        englishLabel: 'NOT VERIFIED'
-      },
-      "Not Verified": {
         color: '#3498db',
         bgColor: '#e8f4f8',
         icon: 'ℹ️',
@@ -132,6 +117,28 @@ function App() {
         icon: '❌',
         description: 'Clearly incorrect information',
         englishLabel: 'FALSE'
+      },
+      // English statuses
+      "Verified": {
+        color: '#27ae60',
+        bgColor: '#d5f4e6',
+        icon: '✅',
+        description: 'Information confirmed by reliable sources',
+        englishLabel: 'VERIFIED'
+      },
+      "Inaccurate": {
+        color: '#f39c12',
+        bgColor: '#fef9e7',
+        icon: '⚠️',
+        description: 'Contains correct data but also incorrect or misleading information',
+        englishLabel: 'INACCURATE'
+      },
+      "Not Verified": {
+        color: '#3498db',
+        bgColor: '#e8f4f8',
+        icon: 'ℹ️',
+        description: 'Not enough evidence to confirm or deny',
+        englishLabel: 'NOT VERIFIED'
       },
       "False": {
         color: '#e74c3c',
@@ -206,6 +213,28 @@ function App() {
     return [recommendations];
   };
 
+  // Function to detect if text is primarily in English
+  const detectInputLanguage = (text) => {
+    const englishWords = ['the', 'and', 'for', 'are', 'with', 'his', 'they', 'this', 'have', 'from', 'government', 'president', 'election'];
+    const spanishWords = ['el', 'la', 'los', 'las', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'es', 'gobierno', 'presidente', 'elecciones'];
+    
+    const lowerText = text.toLowerCase();
+    let englishCount = 0;
+    let spanishCount = 0;
+    
+    englishWords.forEach(word => {
+      if (lowerText.includes(word)) englishCount++;
+    });
+    
+    spanishWords.forEach(word => {
+      if (lowerText.includes(word)) spanishCount++;
+    });
+    
+    return englishCount > spanishCount ? 'English' : 'Spanish';
+  };
+
+  const inputLanguage = detectInputLanguage(newsText);
+
   return (
     <main className="container">
       <header className="header">
@@ -220,19 +249,24 @@ function App() {
         <form onSubmit={handleSubmit} className="news-form">
           <div className="form-group">
             <label htmlFor="newsText">
-              Enter the electoral news text:
+              Enter the electoral news text (English/Spanish):
             </label>
             <textarea
               id="newsText"
               value={newsText}
               onChange={(e) => setNewsText(e.target.value)}
-              placeholder="Paste here the news text you want to verify..."
+              placeholder="Paste here the news text you want to verify... Works in English and Spanish!"
               rows={6}
               maxLength={5000}
               className="news-input"
             />
             <div className="character-count">
               {newsText.length}/5000 characters
+              {newsText.length > 20 && (
+                <span style={{ marginLeft: '10px', fontSize: '0.8rem', color: '#666' }}>
+                  Detected: {inputLanguage === 'English' ? '🇺🇸 English' : '🇪🇸 Spanish'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -265,13 +299,18 @@ function App() {
           <div className="loading-message">
             <div className="loading-spinner"></div>
             <p>🤖 Analyzing news with Perplexity AI...</p>
-            <p><small>This process may take a few seconds</small></p>
+            <p><small>Processing in {inputLanguage}... This may take a few seconds</small></p>
           </div>
         )}
 
         {analysis && (
           <div className="analysis-result">
-            <h2>📊 AI Analysis Result</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2>📊 AI Analysis Result</h2>
+              <div style={{ fontSize: '0.9rem', color: '#666', fontWeight: '500' }}>
+                🌐 Analysis Language: {analysis.detectedLanguage === 'English' ? '🇺🇸 English' : '🇪🇸 Spanish'}
+              </div>
+            </div>
             
             {/* Main Status */}
             <div 
@@ -394,7 +433,8 @@ function App() {
             <div className="metadata">
               <small>
                 📅 Analysis performed: {formatDate(analysis.timestamp)} | 
-                🤖 Powered by Perplexity AI + ICP
+                🤖 Powered by Perplexity AI + ICP | 
+                🌐 Language: {analysis.detectedLanguage}
               </small>
             </div>
           </div>
@@ -404,6 +444,7 @@ function App() {
           <h3>ℹ️ How Veritas Works</h3>
           <ul className="info-list">
             <li>🧠 We analyze text using <strong>Perplexity AI</strong> with access to updated sources</li>
+            <li>🌐 <strong>Automatic language detection</strong> - works in English and Spanish</li>
             <li>📊 We classify into 4 categories: <strong>Verified, Inaccurate, Not Verified, False</strong></li>
             <li>🎯 We provide an <strong>analysis confidence level</strong> (0-100%)</li>
             <li>🔗 We suggest <strong>official sources</strong> for additional verification</li>
@@ -416,6 +457,7 @@ function App() {
             <p>
               This is an automatic analysis with decentralized AI for educational purposes. 
               The system combines advanced Perplexity AI analysis with local verifications.
+              Supports both English and Spanish content automatically.
               Always verify information with official sources before 
               sharing or making decisions based on electoral news.
             </p>
