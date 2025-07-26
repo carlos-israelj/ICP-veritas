@@ -1,21 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width" />
-  <title>IC Hello Starter</title>
-  <base href="/" />
-  <link rel="icon" href="/favicon.ico" />
-</head>
-
-<body>
-  <div class="browser-warning">
-    ⚠️ If this page appears broken, try reloading. If the problem persists, try switching browsers; Chrome or
-    Firefox are recommended.
-  </div>
-  <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
-
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Veritas - Electoral News Verifier with AI</title>
+    
+    <!-- SEO Meta tags -->
+    <meta name="description" content="Electoral news verifier with decentralized artificial intelligence. Analyze the veracity of electoral information from Ecuador 2025." />
+    <meta name="keywords" content="news verifier, Ecuador elections, fact checker, artificial intelligence, blockchain, ICP" />
+    <meta name="author" content="Veritas - ICP Ecuador" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Veritas - Electoral News Verifier with AI" />
+    <meta property="og:description" content="Analyze the veracity of electoral news using decentralized AI on Internet Computer Protocol" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/vite.svg" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Veritas - Electoral News Verifier" />
+    <meta name="twitter:description" content="Decentralized AI to verify electoral news" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Basic styles to prevent FOUC -->
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
+      }
+      
+      #root {
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

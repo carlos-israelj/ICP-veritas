@@ -126,11 +126,11 @@ actor NewsFactChecker {
     // Función para llamar a la API de Perplexity
     private func callPerplexityAPI(newsText: Text) : async Result.Result<Text, ApiError> {
         
-        Debug.print("Iniciando llamada a Perplexity API...");
+        Debug.print("🔍 Iniciando llamada a Perplexity API...");
         
         // Verificar API key
         if (API_KEY == "YOUR_PERPLEXITY_API_KEY") {
-            Debug.print("ERROR: API key no configurada");
+            Debug.print("❌ ERROR: API key no configurada");
             return #err(#ApiError("API key no configurada"));
         };
         
@@ -189,7 +189,7 @@ actor NewsFactChecker {
             transform = null;
         };
 
-        Cycles.add(230_000_000_000);
+        Cycles.add<system>(230_000_000_000);
 
         try {
             let ic : actor {
@@ -201,7 +201,10 @@ actor NewsFactChecker {
             switch (response.status) {
                 case (200) {
                     switch (Text.decodeUtf8(Blob.fromArray(response.body))) {
-                        case (?text) { #ok(text) };
+                        case (?text) { 
+                            Debug.print("✅ Respuesta de API recibida correctamente");
+                            #ok(text) 
+                        };
                         case null { #err(#ParseError("No se pudo decodificar la respuesta")) };
                     }
                 };
@@ -209,12 +212,12 @@ actor NewsFactChecker {
                 case (429) { #err(#ApiError("Límite de rate excedido")) };
                 case (code) { #err(#ApiError("Error de API: " # Int.toText(code))) };
             }
-        } catch (error) {
+        } catch (_) {
             #err(#NetworkError("Error de red"))
         }
     };
 
-    // Función para parsear la respuesta de Perplexity
+    // FUNCIÓN DE PARSING COMPLETAMENTE CORREGIDA
     private func parsePerplexityResponse(response: Text, originalText: Text) : Result.Result<{
         isReliable: Bool;
         confidence: Float;
@@ -227,12 +230,24 @@ actor NewsFactChecker {
         verificationStatus: Text;
     }, ApiError> {
         
-        let content = extractContentFromResponse(response);
+        Debug.print("🔍 Parseando respuesta de Perplexity...");
+        
+        // Extraer el contenido del JSON de Perplexity
+        let content = extractContentFromPerplexityResponse(response);
+        Debug.print("📄 Contenido extraído: " # content);
+        
+        // Parsear el JSON interno del análisis
         let analysis = parseAnalysisFromContent(content);
         
         switch (analysis) {
-            case (?result) { #ok(result) };
+            case (?result) { 
+                Debug.print("✅ Parsing exitoso!");
+                Debug.print("📊 Status: " # result.verificationStatus);
+                Debug.print("📈 Confianza: " # floatToText(result.confidence));
+                #ok(result) 
+            };
             case null { 
+                Debug.print("❌ Fallo en parsing, usando análisis local");
                 let fallbackAnalysis = performLocalAnalysis(originalText);
                 #ok({
                     isReliable = fallbackAnalysis.isReliable;
@@ -249,35 +264,42 @@ actor NewsFactChecker {
         }
     };
 
-    // Extraer contenido de la respuesta
-    private func extractContentFromResponse(response: Text) : Text {
-        if (Text.contains(response, #text "\"content\":\"")) {
-            let parts = Text.split(response, #text "\"content\":\"");
+    // EXTRAER CONTENIDO DE LA RESPUESTA DE PERPLEXITY (CORREGIDO)
+    private func extractContentFromPerplexityResponse(response: Text) : Text {
+        Debug.print("🔍 Extrayendo contenido de respuesta...");
+        
+        // Buscar el patrón "content": "..." dentro de la respuesta
+        if (Text.contains(response, #text "\"content\": \"")) {
+            let parts = Text.split(response, #text "\"content\": \"");
             switch (parts.next()) {
                 case (?_) {
                     switch (parts.next()) {
                         case (?contentPart) {
+                            // Encontrar el final del contenido
                             if (Text.contains(contentPart, #text "\"}")) {
                                 let endParts = Text.split(contentPart, #text "\"}");
                                 switch (endParts.next()) {
-                                    case (?rawContent) { unescapeJson(rawContent) };
-                                    case null { unescapeJson(contentPart) };
+                                    case (?rawContent) { 
+                                        let unescapedContent = unescapeJson(rawContent);
+                                        Debug.print("📄 Contenido encontrado y procesado");
+                                        return unescapedContent;
+                                    };
+                                    case null { };
                                 }
-                            } else {
-                                unescapeJson(contentPart)
-                            }
+                            };
                         };
-                        case null { response };
+                        case null { };
                     }
                 };
-                case null { response };
+                case null { };
             }
-        } else {
-            response
-        }
+        };
+        
+        Debug.print("❌ No se encontró contenido, devolviendo respuesta completa");
+        return response;
     };
 
-    // PARSING MEJORADO DE ANÁLISIS CON CONFIANZA CORREGIDA
+    // PARSING DEL ANÁLISIS MEJORADO
     private func parseAnalysisFromContent(content: Text) : ?{
         isReliable: Bool;
         confidence: Float;
@@ -290,9 +312,12 @@ actor NewsFactChecker {
         verificationStatus: Text;
     } {
         
-        Debug.print("Parseando contenido: " # content);
+        Debug.print("🔍 Parseando análisis del contenido...");
         
+        // Si el contenido es JSON válido, parsearlo
         var jsonContent = content;
+        
+        // Limpiar el JSON
         if (Text.contains(content, #text "```json")) {
             let parts = Text.split(content, #text "```json");
             switch (parts.next()) {
@@ -316,77 +341,55 @@ actor NewsFactChecker {
             }
         };
         
-        let cleanedJson = Text.replace(Text.replace(Text.replace(jsonContent, #text "\n", ""), #text "\r", ""), #text "  ", " ");
-        Debug.print("JSON limpio: " # cleanedJson);
+        // Limpiar caracteres de escape y espacios
+        let cleanedJson = Text.replace(
+            Text.replace(
+                Text.replace(jsonContent, #text "\n", ""), 
+                #text "\r", ""
+            ), 
+            #text "  ", " "
+        );
         
-        // Extraer resultado
+        Debug.print("🧹 JSON limpio para parsing");
+        
+        // EXTRAER RESULTADO
         var verificationStatus = "No Verificado";
         var isReliable = false;
         
-        if (Text.contains(cleanedJson, #text "\"resultado\": \"Verificado\"") or 
-            Text.contains(cleanedJson, #text "\"resultado\":\"Verificado\"")) {
-            verificationStatus := "Verificado";
-            isReliable := true;
-        } else if (Text.contains(cleanedJson, #text "\"resultado\": \"Impreciso\"") or 
-                   Text.contains(cleanedJson, #text "\"resultado\":\"Impreciso\"")) {
-            verificationStatus := "Impreciso";
-            isReliable := false;
-        } else if (Text.contains(cleanedJson, #text "\"resultado\": \"Falso\"") or 
-                   Text.contains(cleanedJson, #text "\"resultado\":\"Falso\"")) {
-            verificationStatus := "Falso";
-            isReliable := false;
-        };
+        let resultValue = extractJsonField(cleanedJson, "resultado", "No Verificado");
+        Debug.print("📊 Resultado extraído: " # resultValue);
         
-        // EXTRACCIÓN DE CONFIANZA MEJORADA
-        var confidence: Float = 0.5;
-        
-        // Buscar patrón "confianza": 0.XX
-        if (Text.contains(cleanedJson, #text "\"confianza\": ")) {
-            let parts = Text.split(cleanedJson, #text "\"confianza\": ");
-            switch (parts.next()) {
-                case (?_) {
-                    switch (parts.next()) {
-                        case (?confidencePart) {
-                            let numberText = extractNumberFromText(confidencePart);
-                            confidence := parseFloatFromText(numberText);
-                            Debug.print("✅ Confianza encontrada: " # numberText);
-                        };
-                        case null {};
-                    }
-                };
-                case null {};
-            }
-        } else if (Text.contains(cleanedJson, #text "\"confianza\":")) {
-            let parts = Text.split(cleanedJson, #text "\"confianza\":");
-            switch (parts.next()) {
-                case (?_) {
-                    switch (parts.next()) {
-                        case (?confidencePart) {
-                            let numberText = extractNumberFromText(confidencePart);
-                            confidence := parseFloatFromText(numberText);
-                            Debug.print("✅ Confianza encontrada: " # numberText);
-                        };
-                        case null {};
-                    }
-                };
-                case null {};
-            }
-        } else {
-            // Asignar por defecto basado en resultado
-            confidence := switch (verificationStatus) {
-                case ("Verificado") { 0.8 };
-                case ("Impreciso") { 0.5 };
-                case ("Falso") { 0.2 };
-                case (_) { 0.4 };
+        switch (resultValue) {
+            case ("Verificado") { 
+                verificationStatus := "Verificado"; 
+                isReliable := true; 
+            };
+            case ("Impreciso") { 
+                verificationStatus := "Impreciso"; 
+                isReliable := false; 
+            };
+            case ("Falso") { 
+                verificationStatus := "Falso"; 
+                isReliable := false; 
+            };
+            case (_) { 
+                verificationStatus := "No Verificado"; 
+                isReliable := false; 
             };
         };
         
-        let summary = extractJsonField(cleanedJson, "resumen", "Análisis completado por IA");
-        let reasoning = extractJsonField(cleanedJson, "evidencia", "Análisis de evidencia disponible");
-        let context = extractJsonField(cleanedJson, "contexto", "Análisis del contexto");
-        let consistency = extractJsonField(cleanedJson, "consistencia", "Análisis de consistencia");
-        let recommendations = extractJsonField(cleanedJson, "recomendaciones", "Verificar con fuentes oficiales");
-        let sourcesText = extractJsonField(cleanedJson, "fuentes_consultadas", "Consejo Nacional Electoral, Registraduría Nacional");
+        // EXTRAER CONFIANZA
+        let confidenceText = extractJsonField(cleanedJson, "confianza", "0.5");
+        let confidence = parseFloatFromText(confidenceText);
+        Debug.print("📈 Confianza extraída: " # confidenceText # " -> " # floatToText(confidence));
+        
+        // EXTRAER OTROS CAMPOS CON DECODIFICACIÓN UNICODE
+        let summary = decodeUnicodeText(extractJsonField(cleanedJson, "resumen", "Análisis completado por IA"));
+        let reasoning = decodeUnicodeText(extractJsonField(cleanedJson, "evidencia", "Análisis de evidencia disponible"));
+        let context = decodeUnicodeText(extractJsonField(cleanedJson, "contexto", "Análisis del contexto"));
+        let consistency = decodeUnicodeText(extractJsonField(cleanedJson, "consistencia", "Análisis de consistencia"));
+        let recommendations = decodeUnicodeText(extractJsonField(cleanedJson, "recomendaciones", "Verificar con fuentes oficiales"));
+        let sourcesText = decodeUnicodeText(extractJsonField(cleanedJson, "fuentes_consultadas", "Fuentes consultadas"));
         
         let sources = [
             sourcesText,
@@ -394,7 +397,9 @@ actor NewsFactChecker {
             "Análisis verificado por Perplexity AI"
         ];
         
-        Debug.print("Parsing completado - Status: " # verificationStatus # ", Confianza: " # floatToText(confidence));
+        Debug.print("✅ Parsing completado exitosamente");
+        Debug.print("📊 Status final: " # verificationStatus);
+        Debug.print("📈 Confianza final: " # floatToText(confidence));
         
         ?{
             isReliable = isReliable;
@@ -409,22 +414,133 @@ actor NewsFactChecker {
         }
     };
 
+    // EXTRAER CAMPO JSON MEJORADO
+    private func extractJsonField(jsonText: Text, fieldName: Text, defaultValue: Text) : Text {
+        // Buscar patrón: "fieldName": "value"
+        let pattern1 = "\"" # fieldName # "\": \"";
+        let pattern2 = "\"" # fieldName # "\":\"";
+        
+        var pattern = pattern1;
+        if (not Text.contains(jsonText, #text pattern1)) {
+            pattern := pattern2;
+        };
+        
+        if (Text.contains(jsonText, #text pattern)) {
+            let parts = Text.split(jsonText, #text pattern);
+            switch (parts.next()) {
+                case (?_) {
+                    switch (parts.next()) {
+                        case (?fieldPart) {
+                            // Buscar el final del campo
+                            var endPattern = "\",";
+                            if (not Text.contains(fieldPart, #text endPattern)) {
+                                endPattern := "\"";
+                            };
+                            
+                            if (Text.contains(fieldPart, #text endPattern)) {
+                                let endParts = Text.split(fieldPart, #text endPattern);
+                                switch (endParts.next()) {
+                                    case (?extractedField) {
+                                        if (Text.size(extractedField) > 0) {
+                                            return extractedField;
+                                        };
+                                    };
+                                    case null {};
+                                }
+                            };
+                        };
+                        case null {};
+                    }
+                };
+                case null {};
+            }
+        };
+        
+        // Para campos numéricos como confianza
+        if (fieldName == "confianza") {
+            let numPattern1 = "\"" # fieldName # "\": ";
+            let numPattern2 = "\"" # fieldName # "\":";
+            
+            var numPattern = numPattern1;
+            if (not Text.contains(jsonText, #text numPattern1)) {
+                numPattern := numPattern2;
+            };
+            
+            if (Text.contains(jsonText, #text numPattern)) {
+                let parts = Text.split(jsonText, #text numPattern);
+                switch (parts.next()) {
+                    case (?_) {
+                        switch (parts.next()) {
+                            case (?numberPart) {
+                                let numberText = extractNumberFromText(numberPart);
+                                if (Text.size(numberText) > 0) {
+                                    return numberText;
+                                };
+                            };
+                            case null {};
+                        }
+                    };
+                    case null {};
+                }
+            };
+        };
+        
+        defaultValue
+    };
+
+    // NUEVA FUNCIÓN PARA DECODIFICAR CARACTERES UNICODE
+    private func decodeUnicodeText(text: Text) : Text {
+        var decoded = text;
+        
+        // Caracteres Unicode comunes en español (minúsculas)
+        decoded := Text.replace(decoded, #text "\\u00f1", "ñ");
+        decoded := Text.replace(decoded, #text "\\u00f3", "ó");
+        decoded := Text.replace(decoded, #text "\\u00e9", "é");
+        decoded := Text.replace(decoded, #text "\\u00ed", "í");
+        decoded := Text.replace(decoded, #text "\\u00fa", "ú");
+        decoded := Text.replace(decoded, #text "\\u00e1", "á");
+        decoded := Text.replace(decoded, #text "\\u00fc", "ü");
+        
+        // Mayúsculas con tildes
+        decoded := Text.replace(decoded, #text "\\u00d1", "Ñ");
+        decoded := Text.replace(decoded, #text "\\u00d3", "Ó");
+        decoded := Text.replace(decoded, #text "\\u00c9", "É");
+        decoded := Text.replace(decoded, #text "\\u00cd", "Í");
+        decoded := Text.replace(decoded, #text "\\u00da", "Ú");
+        decoded := Text.replace(decoded, #text "\\u00c1", "Á");
+        
+        // Otros caracteres especiales
+        decoded := Text.replace(decoded, #text "\\u00bf", "¿");
+        decoded := Text.replace(decoded, #text "\\u00a1", "¡");
+        decoded := Text.replace(decoded, #text "\\u00b0", "°");
+        
+        decoded
+    };
+
     // Extraer número del texto
     private func extractNumberFromText(text: Text) : Text {
-        if (Text.contains(text, #text ",")) {
-            let parts = Text.split(text, #text ",");
+        let trimmed = Text.trim(text, #text " \n\r\t");
+        
+        if (Text.contains(trimmed, #text ",")) {
+            let parts = Text.split(trimmed, #text ",");
             switch (parts.next()) {
                 case (?numberPart) { Text.trim(numberPart, #text " \n\r\t") };
                 case null { "" };
             }
-        } else if (Text.contains(text, #text "}")) {
-            let parts = Text.split(text, #text "}");
+        } else if (Text.contains(trimmed, #text "}")) {
+            let parts = Text.split(trimmed, #text "}");
+            switch (parts.next()) {
+                case (?numberPart) { Text.trim(numberPart, #text " \n\r\t") };
+                case null { "" };
+            }
+        } else if (Text.contains(trimmed, #text " ")) {
+            let parts = Text.split(trimmed, #text " ");
             switch (parts.next()) {
                 case (?numberPart) { Text.trim(numberPart, #text " \n\r\t") };
                 case null { "" };
             }
         } else {
-            Text.trim(text, #text " \n\r\t")
+            trimmed
         }
     };
 
@@ -449,36 +565,6 @@ actor NewsFactChecker {
             case ("1") { 1.0 };
             case (_) { 0.5 };
         }
-    };
-
-    // Extraer campo JSON
-    private func extractJsonField(jsonText: Text, fieldName: Text, defaultValue: Text) : Text {
-        let pattern = "\"" # fieldName # "\": \"";
-        if (Text.contains(jsonText, #text pattern)) {
-            let parts = Text.split(jsonText, #text pattern);
-            switch (parts.next()) {
-                case (?_) {
-                    switch (parts.next()) {
-                        case (?fieldPart) {
-                            if (Text.contains(fieldPart, #text "\",")) {
-                                let endParts = Text.split(fieldPart, #text "\",");
-                                switch (endParts.next()) {
-                                    case (?extractedField) {
-                                        if (Text.size(extractedField) > 0) {
-                                            return extractedField;
-                                        };
-                                    };
-                                    case null {};
-                                }
-                            };
-                        };
-                        case null {};
-                    }
-                };
-                case null {};
-            }
-        };
-        defaultValue
     };
 
     // Análisis local como fallback
@@ -542,7 +628,7 @@ actor NewsFactChecker {
         }
     };
 
-    // Funciones auxiliares
+    // FUNCIONES AUXILIARES MEJORADAS
     private func escapeJson(text: Text) : Text {
         let escaped1 = Text.replace(text, #text "\\", "\\\\");
         let escaped2 = Text.replace(escaped1, #text "\"", "\\\"");
@@ -551,10 +637,35 @@ actor NewsFactChecker {
     };
 
     private func unescapeJson(text: Text) : Text {
-        let unescaped1 = Text.replace(text, #text "\\\"", "\"");
-        let unescaped2 = Text.replace(unescaped1, #text "\\n", "\n");
-        let unescaped3 = Text.replace(unescaped2, #text "\\r", "\r");
-        Text.replace(unescaped3, #text "\\\\", "\\")
+        // Primero desenscapar caracteres básicos
+        var unescaped = Text.replace(text, #text "\\\"", "\"");
+        unescaped := Text.replace(unescaped, #text "\\n", "\n");
+        unescaped := Text.replace(unescaped, #text "\\r", "\r");
+        unescaped := Text.replace(unescaped, #text "\\\\", "\\");
+        
+        // Desenscapar caracteres Unicode comunes en español
+        unescaped := Text.replace(unescaped, #text "\\u00f1", "ñ");
+        unescaped := Text.replace(unescaped, #text "\\u00f3", "ó");
+        unescaped := Text.replace(unescaped, #text "\\u00e9", "é");
+        unescaped := Text.replace(unescaped, #text "\\u00ed", "í");
+        unescaped := Text.replace(unescaped, #text "\\u00fa", "ú");
+        unescaped := Text.replace(unescaped, #text "\\u00e1", "á");
+        unescaped := Text.replace(unescaped, #text "\\u00fc", "ü");
+        
+        // Mayúsculas con tildes
+        unescaped := Text.replace(unescaped, #text "\\u00d1", "Ñ");
+        unescaped := Text.replace(unescaped, #text "\\u00d3", "Ó");
+        unescaped := Text.replace(unescaped, #text "\\u00c9", "É");
+        unescaped := Text.replace(unescaped, #text "\\u00cd", "Í");
+        unescaped := Text.replace(unescaped, #text "\\u00da", "Ú");
+        unescaped := Text.replace(unescaped, #text "\\u00c1", "Á");
+        
+        // Otros caracteres especiales
+        unescaped := Text.replace(unescaped, #text "\\u00bf", "¿");
+        unescaped := Text.replace(unescaped, #text "\\u00a1", "¡");
+        unescaped := Text.replace(unescaped, #text "\\u00b0", "°");
+        
+        unescaped
     };
 
     private func errorToText(error: ApiError) : Text {
@@ -597,7 +708,7 @@ actor NewsFactChecker {
         apiProvider: Text;
     } {
         {
-            version = "3.0.0";
+            version = "3.2.0";
             supportedLanguages = ["Español", "English"];
             maxTextLength = 4000;
             apiProvider = "Perplexity AI + Local Fallback";

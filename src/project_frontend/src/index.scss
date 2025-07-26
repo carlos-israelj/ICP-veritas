@@ -154,6 +154,47 @@ h1 {
   font-weight: 500;
 }
 
+.loading-message {
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  padding: 2rem;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 2rem;
+  border: 2px solid #667eea;
+  animation: loadingPulse 2s infinite;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e3f2fd;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes loadingPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+.loading-message p {
+  margin: 0.5rem 0;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.loading-message small {
+  color: #7f8c8d;
+}
+
 .analysis-result {
   background: #f8f9fa;
   padding: 2rem;
@@ -182,13 +223,13 @@ h1 {
   text-align: center;
 }
 
-/* NUEVOS ESTILOS PARA EL STATUS */
 .verification-status {
   padding: 2rem;
   border-radius: 16px;
   margin-bottom: 2rem;
   text-align: center;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .status-icon {
@@ -208,7 +249,6 @@ h1 {
   font-weight: 500;
 }
 
-/* CONFIDENCE METER MEJORADO */
 .confidence-section {
   background: white;
   padding: 1.5rem;
@@ -249,7 +289,6 @@ h1 {
   text-align: right;
 }
 
-/* ANALYSIS CARDS MEJORADAS */
 .analysis-details {
   display: grid;
   gap: 1.5rem;
@@ -263,10 +302,12 @@ h1 {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border-left: 4px solid;
   transition: transform 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .analysis-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .analysis-card h3 {
@@ -284,14 +325,12 @@ h1 {
   margin: 0;
 }
 
-/* Colores específicos por tipo de card */
 .summary-card { border-left-color: #3498db; }
 .reasoning-card { border-left-color: #e74c3c; }
 .context-card { border-left-color: #f39c12; }
 .consistency-card { border-left-color: #9b59b6; }
 .recommendations-card { border-left-color: #27ae60; }
 
-/* REFERENCE LINKS */
 .reference-links {
   background: white;
   padding: 1.5rem;
@@ -317,16 +356,18 @@ h1 {
   display: block;
   padding: 1rem;
   background: #f8f9fa;
-  borderRadius: 8px;
+  border-radius: 8px;
   text-decoration: none;
   border: 1px solid #e9ecef;
   transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
 .reference-link:hover {
   background: #e9ecef;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #667eea;
 }
 
 .link-title {
@@ -375,10 +416,16 @@ h1 {
   background: #f8f9fa;
   margin-bottom: 0.5rem;
   border-radius: 8px;
+  transition: all 0.3s ease;
 }
 
 .sources-list li:last-child {
   margin-bottom: 0;
+}
+
+.sources-list li:hover {
+  background: #e9ecef;
+  transform: translateX(5px);
 }
 
 .metadata {
@@ -431,7 +478,55 @@ h1 {
   line-height: 1.6;
 }
 
-/* Responsive design */
+.analyze-btn:active {
+  transform: translateY(0);
+}
+
+.clear-btn:active {
+  transform: translateY(0);
+}
+
+.analyze-btn:disabled {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.analysis-result {
+  position: relative;
+  overflow: hidden;
+}
+
+.analysis-result::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 10px;
@@ -477,32 +572,41 @@ h1 {
   }
 }
 
-/* Animaciones adicionales */
-.analyze-btn:active {
-  transform: translateY(0);
-}
-
-.clear-btn:active {
-  transform: translateY(0);
-}
-
-/* Estados de carga */
-.analyze-btn:disabled {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 1;
+@media (max-width: 480px) {
+  .header {
+    padding: 1.5rem;
+    margin-bottom: 2rem;
   }
-  50% {
-    opacity: 0.7;
+  
+  h1 {
+    font-size: 1.8rem;
   }
-  100% {
-    opacity: 1;
+  
+  .subtitle {
+    font-size: 1rem;
   }
-}
-
-.browser-warning {
-  display: none;
+  
+  .main-content {
+    padding: 1rem;
+  }
+  
+  .analysis-result {
+    padding: 1.5rem;
+  }
+  
+  .verification-status {
+    padding: 1rem;
+  }
+  
+  .status-icon {
+    font-size: 2rem;
+  }
+  
+  .status-title {
+    font-size: 1.3rem;
+  }
+  
+  .analysis-card {
+    padding: 1rem;
+  }
 }
